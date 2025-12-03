@@ -1,0 +1,145 @@
+int pushbuttonsCount = 5;
+
+unsigned long resistorValue = 1000;
+unsigned long resistorToGround = 1000000;
+
+byte inPin = A0;
+float sourceVoltage = 5.0;
+char *push_button_name[] = {"PB1", "PB2", "PB3", "PB4", "PB5"};
+bool pbValue[]={0,0,0,0,0};
+unsigned int outputPin[] = {2,3,4,5,6};
+
+int pushDelayTime = 100; //100 milliseconds
+float v_tolerance = 0.10;
+bool debug = false;
+
+const byte BIT_SOLUTION = 10;
+unsigned int r_total;
+int r_led = 9;
+int g_led = 10;
+int b_led = 11;
+
+void setup() 
+{
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println(pushbuttonsCount);
+  Serial.println(" Push buttons");
+  for(int i = 0; i<pushbuttonsCount; i++)
+  {
+    pinMode(outputPin[i], OUTPUT);
+  }
+  pinMode(r_led, OUTPUT);
+  pinMode(g_led, OUTPUT);
+  pinMode(b_led, OUTPUT);
+}
+
+void loop() 
+{
+  readPushButtons();
+
+  for(unsigned int i = 0; i<pushbuttonsCount; i++)
+  {
+    if(pbValue[i])
+    {
+      Serial.print("pressed ");
+      Serial.println(push_button_name[i]);
+      controOutput(i);
+  if(i == 0)
+  {
+    analogWrite(r_led, 255);
+    analogWrite(g_led, 0);
+    analogWrite(b_led, 0);
+  }
+  else if(i == 1)
+  {
+    analogWrite(r_led, 0);
+    analogWrite(g_led, 255);
+    analogWrite(b_led, 0);
+  }
+  else if(i == 2)
+  {
+    analogWrite(r_led, 0);
+    analogWrite(g_led, 0);
+    analogWrite(b_led, 255);
+  }
+    }
+  }
+  delay(100);
+}//loop
+
+void readPushButtons()
+{
+  float VR_Calculated,RT, voltage_maximum, Voltage_minimum;
+  float V_measured = analogRead(inPin);
+
+  V_measured = V_measured*((float)sourceVoltage/(pow(2,BIT_SOLUTION)-1));
+
+  if(debug)
+  {
+    Serial.print("Measured Voltage: ");
+    Serial.print(V_measured);
+    Serial.println("V");
+
+    Serial.print(pushbuttonsCount);
+    Serial.println(" Push buttons");
+  }
+  for(unsigned int i = 0; i<pushbuttonsCount; i++)
+  {
+    // ai help here
+    float resistorStep = resistorValue;
+
+    float R_up = (pushbuttonsCount - (i+1)) * resistorStep;
+    float R_down = (i+1) * resistorStep;
+
+    if (i == pushbuttonsCount - 1) {
+    VR_Calculated = sourceVoltage;   // last button
+    }    else {
+    VR_Calculated = sourceVoltage * (R_down / (R_up + R_down));
+    }
+    Voltage_minimum = VR_Calculated-v_tolerance*VR_Calculated;
+    voltage_maximum = VR_Calculated+v_tolerance*VR_Calculated;
+
+    if(i<pushbuttonsCount-1 && debug)
+    {
+      Serial.print("\t R-BP-");
+      Serial.print(i+1);
+      Serial.print(" ");
+      Serial.print(RT);
+      Serial.print("OHM");
+      if(i==0)
+      {
+        Serial.print("\t");
+      }
+
+      Serial.print("\t VR ");
+      Serial.print(VR_Calculated);
+      Serial.print("V");
+      
+      Serial.print("\t V-Min ");
+      Serial.print(Voltage_minimum);
+      Serial.print("V");
+
+      Serial.print("\t V-Max ");
+      Serial.print(voltage_maximum);
+      Serial.print("V");
+    }
+
+    if(V_measured < (voltage_maximum) && V_measured > (Voltage_minimum))
+    {
+      pbValue[i] = true;
+      delay(pushDelayTime);
+    }
+    else
+    {
+      pbValue[i] = false;
+    }
+  }
+}
+void controOutput(int i)
+{
+  digitalWrite(outputPin[i], HIGH);
+  Serial.print("\nPin ");
+  Serial.print(outputPin[i]);
+  Serial.println(" is ON");
+}
